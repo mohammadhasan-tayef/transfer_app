@@ -32,6 +32,77 @@ void main() {
     expect(find.text('Continue'), findsOneWidget);
   });
 
+  testWidgets('opens the Exportify URL from the helper action', (tester) async {
+    Uri? openedUri;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: PlaylistImportScreen(
+          importPlaylists: const ImportPlaylists(
+            _FakePlaylistImportRepository(PlaylistImportResult.empty()),
+          ),
+          launchExportify: (uri) async {
+            openedUri = uri;
+            return true;
+          },
+        ),
+      ),
+    );
+
+    await _tapExportifyAction(tester);
+
+    expect(openedUri?.scheme, 'https');
+    expect(openedUri?.host, 'exportify.net');
+    expect(openedUri?.path, '/');
+    expect(
+      find.text('Could not open Exportify. Please try again.'),
+      findsNothing,
+    );
+  });
+
+  testWidgets('shows an error when Exportify cannot be opened', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: PlaylistImportScreen(
+          importPlaylists: const ImportPlaylists(
+            _FakePlaylistImportRepository(PlaylistImportResult.empty()),
+          ),
+          launchExportify: (_) async => false,
+        ),
+      ),
+    );
+
+    await _tapExportifyAction(tester);
+
+    expect(
+      find.text('Could not open Exportify. Please try again.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('shows an error when opening Exportify throws', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: PlaylistImportScreen(
+          importPlaylists: const ImportPlaylists(
+            _FakePlaylistImportRepository(PlaylistImportResult.empty()),
+          ),
+          launchExportify: (_) =>
+              Future<bool>.error(Exception('launch failed')),
+        ),
+      ),
+    );
+
+    await _tapExportifyAction(tester);
+
+    expect(
+      find.text('Could not open Exportify. Please try again.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('imports a playlist, updates totals, and continues', (
     tester,
   ) async {
@@ -106,6 +177,13 @@ void main() {
     expect(find.text('1 playlist'), findsOneWidget);
     expect(find.text('Gym.csv has already been imported.'), findsOneWidget);
   });
+}
+
+Future<void> _tapExportifyAction(WidgetTester tester) async {
+  final action = find.text("Don't have CSV files? Get them from Exportify");
+  await tester.ensureVisible(action);
+  await tester.tap(action);
+  await tester.pump();
 }
 
 class _FakePlaylistImportRepository implements PlaylistImportRepository {

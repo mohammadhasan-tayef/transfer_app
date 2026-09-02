@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../youtube_connection/presentation/screens/youtube_connection_screen.dart';
@@ -13,10 +14,21 @@ import '../widgets/playlist_section_header.dart';
 import '../widgets/privacy_notice_card.dart';
 import '../widgets/transfer_header.dart';
 
+typedef ExportifyLauncher = Future<bool> Function(Uri uri);
+
+Future<bool> _launchExportifyInExternalBrowser(Uri uri) {
+  return launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
 class PlaylistImportScreen extends StatefulWidget {
-  const PlaylistImportScreen({required this.importPlaylists, super.key});
+  const PlaylistImportScreen({
+    required this.importPlaylists,
+    this.launchExportify = _launchExportifyInExternalBrowser,
+    super.key,
+  });
 
   final ImportPlaylists importPlaylists;
+  final ExportifyLauncher launchExportify;
 
   @override
   State<PlaylistImportScreen> createState() => _PlaylistImportScreenState();
@@ -24,6 +36,9 @@ class PlaylistImportScreen extends StatefulWidget {
 
 class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
   static const _maxContentWidth = 520.0;
+  static const _exportifyErrorMessage =
+      'Could not open Exportify. Please try again.';
+  static final Uri _exportifyUri = Uri.parse('https://exportify.net/');
 
   final List<Playlist> _playlists = [];
   bool _isImporting = false;
@@ -93,8 +108,17 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _showExportifyPlaceholder() {
-    _showMessage('The Exportify link will be available next.');
+  Future<void> _openExportify() async {
+    try {
+      final opened = await widget.launchExportify(_exportifyUri);
+      if (!opened && mounted) {
+        _showMessage(_exportifyErrorMessage);
+      }
+    } catch (_) {
+      if (mounted) {
+        _showMessage(_exportifyErrorMessage);
+      }
+    }
   }
 
   void _goToYouTubeConnection() {
@@ -143,10 +167,13 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          TextButton(
-                            onPressed: _showExportifyPlaceholder,
-                            child: const Text(
-                              "Don't have CSV files? Get them from Exportify",
+                          Tooltip(
+                            message: 'Open Exportify in browser',
+                            child: TextButton(
+                              onPressed: _openExportify,
+                              child: const Text(
+                                "Don't have CSV files? Get them from Exportify",
+                              ),
                             ),
                           ),
                           const SizedBox(height: 20),
