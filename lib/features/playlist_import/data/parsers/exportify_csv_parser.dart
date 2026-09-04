@@ -6,6 +6,10 @@ import 'package:csv/csv.dart';
 import '../../domain/models/playlist.dart';
 import '../../domain/models/track.dart';
 
+class ExportifyCsvFormatException extends FormatException {
+  const ExportifyCsvFormatException(super.message);
+}
+
 class ExportifyCsvParser {
   const ExportifyCsvParser();
 
@@ -29,11 +33,16 @@ class ExportifyCsvParser {
   static const _explicitHeaders = ['Explicit', 'Explicit?'];
 
   Playlist parse({required Uint8List bytes, required String fileName}) {
-    final csvText = _decodeUtf8(bytes);
-    final rows = csv.decode(csvText);
+    final List<List<dynamic>> rows;
+    try {
+      final csvText = _decodeUtf8(bytes);
+      rows = csv.decode(csvText);
+    } on FormatException {
+      throw const ExportifyCsvFormatException(_unsupportedCsvMessage);
+    }
 
     if (rows.isEmpty) {
-      throw const FormatException(_unsupportedCsvMessage);
+      throw const ExportifyCsvFormatException(_unsupportedCsvMessage);
     }
 
     final headerIndexes = _buildHeaderIndexes(rows.first);
@@ -42,7 +51,7 @@ class ExportifyCsvParser {
     final durationIndex = _findColumn(headerIndexes, _durationHeaders);
 
     if (titleIndex == null || artistsIndex == null || durationIndex == null) {
-      throw const FormatException(_unsupportedCsvMessage);
+      throw const ExportifyCsvFormatException(_unsupportedCsvMessage);
     }
 
     final tracks = <Track>[];
@@ -61,7 +70,7 @@ class ExportifyCsvParser {
     }
 
     if (tracks.isEmpty) {
-      throw const FormatException(_noValidTracksMessage);
+      throw const ExportifyCsvFormatException(_noValidTracksMessage);
     }
 
     return Playlist(

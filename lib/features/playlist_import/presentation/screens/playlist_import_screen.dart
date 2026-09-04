@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../youtube_connection/presentation/screens/youtube_connection_screen.dart';
 import '../../application/use_cases/import_playlists.dart';
 import '../../domain/models/playlist.dart';
 import '../../domain/models/playlist_import_result.dart';
@@ -15,19 +13,19 @@ import '../widgets/privacy_notice_card.dart';
 import '../widgets/transfer_header.dart';
 
 typedef ExportifyLauncher = Future<bool> Function(Uri uri);
-
-Future<bool> _launchExportifyInExternalBrowser(Uri uri) {
-  return launchUrl(uri, mode: LaunchMode.externalApplication);
-}
+typedef YouTubeConnectionScreenBuilder =
+    Widget Function(BuildContext context, List<Playlist> playlists);
 
 class PlaylistImportScreen extends StatefulWidget {
   const PlaylistImportScreen({
     required this.importPlaylists,
-    this.launchExportify = _launchExportifyInExternalBrowser,
+    required this.youtubeConnectionScreenBuilder,
+    required this.launchExportify,
     super.key,
   });
 
   final ImportPlaylists importPlaylists;
+  final YouTubeConnectionScreenBuilder youtubeConnectionScreenBuilder;
   final ExportifyLauncher launchExportify;
 
   @override
@@ -38,10 +36,12 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
   static const _maxContentWidth = 520.0;
   static const _exportifyErrorMessage =
       'Could not open Exportify. Please try again.';
-  static final Uri _exportifyUri = Uri.parse('https://exportify.net/');
+  static final Uri _exportifyUri = Uri.parse('https://exportify.app/');
 
   final List<Playlist> _playlists = [];
   bool _isImporting = false;
+  bool _isNavigating = false;
+  bool _isOpeningExportify = false;
 
   bool get _hasPlaylists => _playlists.isNotEmpty;
 
@@ -109,6 +109,11 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
   }
 
   Future<void> _openExportify() async {
+    if (_isOpeningExportify) {
+      return;
+    }
+    setState(() => _isOpeningExportify = true);
+
     try {
       final opened = await widget.launchExportify(_exportifyUri);
       if (!opened && mounted) {
@@ -118,19 +123,30 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
       if (mounted) {
         _showMessage(_exportifyErrorMessage);
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isOpeningExportify = false);
+      }
     }
   }
 
-  void _goToYouTubeConnection() {
-    if (!_hasPlaylists) {
+  Future<void> _goToYouTubeConnection() async {
+    if (!_hasPlaylists || _isNavigating) {
       return;
     }
 
-    Navigator.of(context).push(
+    setState(() => _isNavigating = true);
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (context) => const YouTubeConnectionScreen(),
+        builder: (context) => widget.youtubeConnectionScreenBuilder(
+          context,
+          List<Playlist>.unmodifiable(_playlists),
+        ),
       ),
     );
+    if (mounted) {
+      setState(() => _isNavigating = false);
+    }
   }
 
   @override
@@ -170,7 +186,9 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
                           Tooltip(
                             message: 'Open Exportify in browser',
                             child: TextButton(
-                              onPressed: _openExportify,
+                              onPressed: _isOpeningExportify
+                                  ? null
+                                  : _openExportify,
                               child: const Text(
                                 "Don't have CSV files? Get them from Exportify",
                               ),
@@ -193,7 +211,7 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
                   ),
                   const SizedBox(height: 16),
                   ImportContinueButton(
-                    enabled: _hasPlaylists,
+                    enabled: _hasPlaylists && !_isNavigating,
                     trackCount: _totalTracks,
                     onPressed: _goToYouTubeConnection,
                   ),

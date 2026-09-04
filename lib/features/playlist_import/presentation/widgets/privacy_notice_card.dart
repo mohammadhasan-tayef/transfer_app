@@ -39,7 +39,7 @@ class PrivacyNoticeCard extends StatelessWidget {
                 ),
                 SizedBox(height: 5),
                 Text(
-                  'Your playlist files are processed directly on your device.',
+                  'CSV files stay on your device. Cover previews may load from their original image hosts.',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,

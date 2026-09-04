@@ -1,17 +1,29 @@
-# transfer_aplicationn
+# Music Transfer
 
-A new Flutter project.
+A Flutter proof of concept for importing Spotify playlists exported as CSV and
+validating access to YouTube Music before continuing to the transfer workflow.
 
-## Getting Started
+## Current flow
 
-This project is a starting point for a Flutter application.
+- Import one or more Exportify CSV files.
+- Review imported playlist and track totals locally.
+- Authenticate with Google and validate authenticated YouTube Music reads.
+- Continue to the Home placeholder with the imported playlist data intact.
+- Optionally run the explicitly enabled debug-only write capability check.
 
-A few resources to get you started if this is your first Flutter project:
+The actual playlist matching and transfer engine are intentionally outside the
+current scope.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Development
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```powershell
+flutter pub get
+flutter analyze
+flutter test
+flutter run
+```
+
+Google OAuth setup and the safe InnerTube POC procedure are documented in
+[docs/youtube_music_oauth_poc.md](docs/youtube_music_oauth_poc.md). Real-account
+OAuth and InnerTube capability results must not be marked as successful until
+the documented manual validation has been performed.

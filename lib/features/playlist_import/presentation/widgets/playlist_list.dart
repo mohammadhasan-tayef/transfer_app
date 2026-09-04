@@ -97,16 +97,23 @@ class _PlaylistCover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageUrl = imageUrls.firstOrNull;
+    final imageUri = imageUrl == null ? null : Uri.tryParse(imageUrl);
+    final remoteImageUrl =
+        imageUri != null &&
+            imageUri.scheme == 'https' &&
+            imageUri.host.isNotEmpty
+        ? imageUrl
+        : null;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: SizedBox(
         width: 56,
         height: 56,
-        child: imageUrl == null
+        child: remoteImageUrl == null
             ? const _PlaylistCoverPlaceholder()
             : Image.network(
-                imageUrl,
+                remoteImageUrl,
                 fit: BoxFit.cover,
                 loadingBuilder: (context, child, loadingProgress) {
                   return loadingProgress == null

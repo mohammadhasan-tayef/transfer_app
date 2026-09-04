@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:transfer_aplicationn/app.dart';
@@ -41,6 +43,7 @@ void main() {
           importPlaylists: const ImportPlaylists(
             _FakePlaylistImportRepository(PlaylistImportResult.empty()),
           ),
+          youtubeConnectionScreenBuilder: _youtubePlaceholderBuilder,
           launchExportify: (uri) async {
             openedUri = uri;
             return true;
@@ -52,12 +55,49 @@ void main() {
     await _tapExportifyAction(tester);
 
     expect(openedUri?.scheme, 'https');
-    expect(openedUri?.host, 'exportify.net');
+    expect(openedUri?.host, 'exportify.app');
     expect(openedUri?.path, '/');
     expect(
       find.text('Could not open Exportify. Please try again.'),
       findsNothing,
     );
+  });
+  testWidgets('does not launch Exportify twice while opening is in flight', (
+    tester,
+  ) async {
+    final launchCompleter = Completer<bool>();
+    var launchCalls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: PlaylistImportScreen(
+          importPlaylists: const ImportPlaylists(
+            _FakePlaylistImportRepository(PlaylistImportResult.empty()),
+          ),
+          youtubeConnectionScreenBuilder: _youtubePlaceholderBuilder,
+          launchExportify: (_) {
+            launchCalls += 1;
+            return launchCompleter.future;
+          },
+        ),
+      ),
+    );
+
+    final action = find.widgetWithText(
+      TextButton,
+      "Don't have CSV files? Get them from Exportify",
+    );
+    final actionButton = tester.widget<TextButton>(action);
+    actionButton.onPressed!();
+    actionButton.onPressed!();
+    await tester.pump();
+
+    expect(launchCalls, 1);
+    expect(tester.widget<TextButton>(action).onPressed, isNull);
+
+    launchCompleter.complete(true);
+    await tester.pump();
+    expect(tester.widget<TextButton>(action).onPressed, isNotNull);
   });
 
   testWidgets('shows an error when Exportify cannot be opened', (tester) async {
@@ -68,6 +108,7 @@ void main() {
           importPlaylists: const ImportPlaylists(
             _FakePlaylistImportRepository(PlaylistImportResult.empty()),
           ),
+          youtubeConnectionScreenBuilder: _youtubePlaceholderBuilder,
           launchExportify: (_) async => false,
         ),
       ),
@@ -89,6 +130,7 @@ void main() {
           importPlaylists: const ImportPlaylists(
             _FakePlaylistImportRepository(PlaylistImportResult.empty()),
           ),
+          youtubeConnectionScreenBuilder: _youtubePlaceholderBuilder,
           launchExportify: (_) =>
               Future<bool>.error(Exception('launch failed')),
         ),
@@ -123,10 +165,20 @@ void main() {
       PlaylistImportResult(playlists: [playlist]),
     );
     final importPlaylists = ImportPlaylists(repository);
+    List<Playlist>? continuedPlaylists;
+    var navigationBuilds = 0;
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark,
-        home: PlaylistImportScreen(importPlaylists: importPlaylists),
+        home: PlaylistImportScreen(
+          importPlaylists: importPlaylists,
+          youtubeConnectionScreenBuilder: (context, playlists) {
+            navigationBuilds += 1;
+            continuedPlaylists = playlists;
+            return _youtubePlaceholderBuilder(context, playlists);
+          },
+          launchExportify: (_) async => true,
+        ),
       ),
     );
 
@@ -143,10 +195,14 @@ void main() {
     );
     expect(continueButton.onPressed, isNotNull);
     continueButton.onPressed!();
+    continueButton.onPressed!();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Connect YouTube Music'), findsOneWidget);
+    expect(find.text('YouTube connection placeholder'), findsOneWidget);
+    expect(navigationBuilds, 1);
+    expect(continuedPlaylists, [playlist]);
+    expect(() => continuedPlaylists!.clear(), throwsUnsupportedError);
   });
 
   testWidgets('does not add an imported source file twice', (tester) async {
@@ -164,7 +220,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark,
-        home: PlaylistImportScreen(importPlaylists: importPlaylists),
+        home: PlaylistImportScreen(
+          importPlaylists: importPlaylists,
+          youtubeConnectionScreenBuilder: _youtubePlaceholderBuilder,
+          launchExportify: (_) async => true,
+        ),
       ),
     );
 
@@ -184,6 +244,13 @@ Future<void> _tapExportifyAction(WidgetTester tester) async {
   await tester.ensureVisible(action);
   await tester.tap(action);
   await tester.pump();
+}
+
+Widget _youtubePlaceholderBuilder(
+  BuildContext context,
+  List<Playlist> playlists,
+) {
+  return const Scaffold(body: Text('YouTube connection placeholder'));
 }
 
 class _FakePlaylistImportRepository implements PlaylistImportRepository {
