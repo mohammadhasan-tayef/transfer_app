@@ -134,7 +134,7 @@ class GoogleOAuthClient implements YouTubeAuthorizationProvider {
 
   Future<void> _ensureInitialized() {
     return _initialization ??= _googleSignIn.initialize(
-      serverClientId: configuration.serverClientId,
+      serverClientId: configuration.serverClientId.trim(),
     );
   }
 

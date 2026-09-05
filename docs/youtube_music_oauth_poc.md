@@ -59,9 +59,21 @@ application ID and its release/Play App Signing SHA-1 separately before release.
 ## Run the read-validation POC
 
 ```powershell
-flutter run -d <ANDROID_DEVICE_ID> `
-  --dart-define=GOOGLE_OAUTH_SERVER_CLIENT_ID=<WEB_CLIENT_ID>.apps.googleusercontent.com
+flutter run --dart-define=GOOGLE_OAUTH_SERVER_CLIENT_ID=<WEB_CLIENT_ID>
 ```
+
+Replace `<WEB_CLIENT_ID>` with the complete **Web application** client ID,
+including its `.apps.googleusercontent.com` suffix, not the Android client ID.
+Add `-d <ANDROID_DEVICE_ID>` if you need to select an Android device. Stop the
+running app and rerun this command after changing the define; hot reload does
+not update compile-time configuration.
+
+The app passes this define to `GoogleSignIn.initialize(serverClientId: ...)`
+and awaits initialization before authentication. An absent or blank value
+prevents sign-in and produces a clear configuration failure. Client/provider
+configuration errors use the same safe message. Check the Web client ID and
+the registered Android package/signing SHA-1 if it appears with a configured
+value. Never include credentials or raw SDK exceptions in logs.
 
 Manual checklist:
 
